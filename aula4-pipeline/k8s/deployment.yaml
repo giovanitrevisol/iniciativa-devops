@@ -1,0 +1,80 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: bd-kube-news
+spec:
+  selector:
+    matchLabels:
+      app: bd-kube-news
+  template:
+    metadata:
+      labels:
+        app: bd-kube-news
+    spec:
+      containers:
+        - name: bd-kube-news
+          image: postgres:14.4
+          ports:
+            - containerPort: 5432
+          env:
+            - name: POSTGRES_USER
+              value: "kubeuser"
+            - name: POSTGRES_DB
+              value: "kubenews"
+            - name: POSTGRES_PASSWORD
+              value: "mysecretpassword"
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: bd-kube-news
+spec:
+  selector:
+    app: bd-kube-news
+  ports:
+    - port: 5432
+      targetPort: 5432
+
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: app-kube-news
+spec:
+  selector:
+    matchLabels:
+      app: app-kube-news
+  template:
+    metadata:
+      labels:
+        app: app-kube-news
+      annotations:
+        prometheus.io/scrape: "true"
+        prometheus.io/port: "8080"
+        prometheus.io/path: "/metrics"
+    spec:
+      containers:
+        - name: app-kube-news
+          image: giovanitrevisol93/kube-news:v1
+          env:
+            - name: DB_USERNAME
+              value: "kubeuser"
+            - name: DB_DATABASE
+              value: "kubenews"
+            - name: DB_PASSWORD
+              value: "mysecretpassword"
+            - name: DB_HOST
+              value: "bd-kube-news"
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: srv-kube-news
+spec:
+  selector:
+    app: app-kube-news
+  ports:
+    - port: 80
+      targetPort: 8080
+      nodePort: 30000
+  type: LoadBalancer
